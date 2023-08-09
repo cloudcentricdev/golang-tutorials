@@ -19,7 +19,7 @@ func (a *Arena) Alloc(dataSize int) (int, error) {
 	currOffset := a.offset
 	nextOffset := (currOffset + dataSize + bitmask) &^ bitmask
 
-	if nextOffset >= len(a.buffer) {
+	if nextOffset > len(a.buffer) {
 		return currOffset, errors.New("not enough memory")
 	}
 	a.offset = nextOffset
