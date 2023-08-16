@@ -1,0 +1,2 @@
+[{*.go,*.go2}]
+ij_go_import_sorting = goimports
