@@ -30,7 +30,7 @@ func (c *CLI) Start() {
 
 func (c *CLI) printHelp() {
 	fmt.Println(`
-BTree CLI
+B-Tree CLI
 
 Available Commands:
   SET <key> <val> Insert a key-value pair into the BTree
