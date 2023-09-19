@@ -33,9 +33,9 @@ func (c *CLI) printHelp() {
 B-Tree CLI
 
 Available Commands:
-  SET <key> <val> Insert a key-value pair into the BTree
-  DEL <key>       Remove a key-value pair from the BTree
-  GET <key>       Retrieve the value for key from the BTree
+  SET <key> <val> Insert a key-value pair into the B-Tree
+  DEL <key>       Remove a key-value pair from the B-Tree
+  GET <key>       Retrieve the value for key from the B-Tree
   EXIT            Terminate this session
 `)
 }
