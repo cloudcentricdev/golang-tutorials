@@ -17,12 +17,14 @@ type syncCloser interface {
 type Writer struct {
 	file syncCloser
 	bw   *bufio.Writer
+	buf  []byte
 }
 
 func NewWriter(file io.Writer) *Writer {
 	w := &Writer{}
 	bw := bufio.NewWriter(file)
 	w.file, w.bw = file.(syncCloser), bw
+	w.buf = make([]byte, 0, 1024)
 
 	return w
 }
@@ -42,7 +44,7 @@ func (w *Writer) Process(m *memtable.Memtable) error {
 func (w *Writer) writeDataBlock(key, val []byte) error {
 	keyLen, valLen := len(key), len(val)
 	needed := 4 + keyLen + valLen
-	buf := make([]byte, needed)
+	buf := w.buf[:needed]
 	binary.LittleEndian.PutUint16(buf[:], uint16(keyLen))
 	binary.LittleEndian.PutUint16(buf[2:], uint16(valLen))
 	copy(buf[4:], key)
