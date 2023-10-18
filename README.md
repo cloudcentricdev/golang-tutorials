@@ -1,7 +1,7 @@
 # Overview
 This repository contains Golang code supplementing the tutorials published on [cloudcentric.dev](https://www.cloudcentric.dev/).
 
-The subfolder names range from "01" to "99" and depend on the publication date of the specific tutorial. To clarify, "01" is the earliest published tutorial, while "99" is the most recent one. 
+The subfolder names range from `01` to `99` and depend on the publication date of each specific tutorial. To clarify, `01` is the earliest published tutorial, while `99` is the most recent one.
 
 Some tutorials are related, while others are entirely independent. The numbers do NOT reflect any dependencies. 
 
@@ -14,6 +14,6 @@ Below is a list mapping each subfolder to its respective article on the website:
 * [05:](https://github.com/cloudcentricdev/golang-tutorials/tree/main/05) [Exploring Memtables](https://www.cloudcentric.dev/exploring-memtables/)
 * [06:](https://github.com/cloudcentricdev/golang-tutorials/tree/main/06) [Exploring SSTables](https://www.cloudcentric.dev/exploring-sstables/)
 
-The format is:
+The link format is:
 
 `[00:](https://github.com/cloudcentricdev/golang-tutorials/tree/main/00) [Article Title](https://www.cloudcentric.dev/article-link)`
