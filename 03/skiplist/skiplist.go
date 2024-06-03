@@ -144,24 +144,3 @@ func (sl *SkipList) String() string {
 	v := &visualizer{sl}
 	return v.visualize()
 }
-
-type Iterator struct {
-	current *node
-}
-
-func (i *Iterator) hasNext() bool {
-	return i.current.tower[0] != nil
-}
-
-func (i *Iterator) next() ([]byte, []byte) {
-	i.current = i.current.tower[0]
-
-	if i.current == nil {
-		return nil, nil
-	}
-	return i.current.key, i.current.val
-}
-
-func (sl *SkipList) Iterator() *Iterator {
-	return &Iterator{sl.head.tower[0]}
-}

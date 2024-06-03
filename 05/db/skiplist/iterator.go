@@ -5,7 +5,7 @@ type Iterator struct {
 }
 
 func (sl *SkipList) Iterator() *Iterator {
-	return &Iterator{sl.head.tower[0]}
+	return &Iterator{sl.head}
 }
 
 func (i *Iterator) HasNext() bool {
