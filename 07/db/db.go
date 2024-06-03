@@ -2,14 +2,12 @@ package db
 
 import (
 	"errors"
-	"io"
 	"log"
 
-	"github.com/cloudcentricdev/golang-tutorials/07/db/encoder"
-	"github.com/cloudcentricdev/golang-tutorials/07/db/memtable"
-	"github.com/cloudcentricdev/golang-tutorials/07/db/sstable"
-	"github.com/cloudcentricdev/golang-tutorials/07/db/storage"
-	"github.com/cloudcentricdev/golang-tutorials/07/db/wal"
+	"github.com/cloudcentricdev/golang-tutorials/06/db/encoder"
+	"github.com/cloudcentricdev/golang-tutorials/06/db/memtable"
+	"github.com/cloudcentricdev/golang-tutorials/06/db/sstable"
+	"github.com/cloudcentricdev/golang-tutorials/06/db/storage"
 )
 
 const (
@@ -23,12 +21,7 @@ type DB struct {
 		mutable *memtable.Memtable
 		queue   []*memtable.Memtable
 	}
-	wal struct {
-		w  *wal.Writer
-		fm *storage.FileMetadata
-	}
 	sstables []*storage.FileMetadata
-	logs     []*storage.FileMetadata
 }
 
 func Open(dirname string) (*DB, error) {
@@ -37,136 +30,56 @@ func Open(dirname string) (*DB, error) {
 		return nil, err
 	}
 	db := &DB{dataStorage: dataStorage}
-	if err = db.loadFiles(); err != nil {
+
+	err = db.loadSSTables()
+	if err != nil {
 		return nil, err
 	}
-	if err = db.replayWALs(); err != nil {
-		return nil, err
-	}
-	if err = db.createNewWAL(); err != nil {
-		return nil, err
-	}
-	db.rotateMemtables()
+	db.memtables.mutable = memtable.NewMemtable(memtableSizeLimit)
+	db.memtables.queue = append(db.memtables.queue, db.memtables.mutable)
 	return db, nil
 }
 
-func (d *DB) loadFiles() error {
+func (d *DB) loadSSTables() error {
 	meta, err := d.dataStorage.ListFiles()
 	if err != nil {
 		return err
 	}
 	for _, f := range meta {
-		switch {
-		case f.IsSSTable():
-			d.sstables = append(d.sstables, f)
-		case f.IsWAL():
-			d.logs = append(d.logs, f)
-		default:
+		if !f.IsSSTable() {
 			continue
 		}
-	}
-	return nil
-}
-
-func (d *DB) replayWALs() error {
-	for _, fm := range d.logs {
-		if err := d.replayWAL(fm); err != nil {
-			return err
-		}
-	}
-	d.logs = nil
-	return nil
-}
-
-func (d *DB) replayWAL(fm *storage.FileMetadata) error {
-	f, err := d.dataStorage.OpenFileForReading(fm)
-	if err != nil {
-		return err
-	}
-	r := wal.NewReader(f)
-	d.wal.fm = fm
-	m := d.rotateMemtables()
-	for {
-		key, val, err := r.Next()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return err
-		}
-		if !m.HasRoomForWrite(key, val.Value()) {
-			d.rotateMemtables()
-		}
-		if val.IsTombstone() {
-			m.InsertTombstone(key)
-		} else {
-			m.Insert(key, val.Value())
-		}
-	}
-	d.rotateMemtables()
-	if err = d.flushMemtables(); err != nil {
-		return err
-	}
-	d.memtables.queue, d.memtables.mutable = nil, nil
-	if err = f.Close(); err != nil {
-		return err
+		d.sstables = append(d.sstables, f)
 	}
 	return nil
 }
 
 func (d *DB) Set(key, val []byte) {
-	_ = d.wal.w.RecordInsertion(key, val)
-	m, _ := d.prepMemtableForKV(key, val)
+	m := d.prepMemtableForKV(key, val)
 	m.Insert(key, val)
 	d.maybeScheduleFlush()
 }
 
 func (d *DB) Delete(key []byte) {
-	_ = d.wal.w.RecordDeletion(key)
-	m, _ := d.prepMemtableForKV(key, nil)
+	m := d.prepMemtableForKV(key, nil)
 	m.InsertTombstone(key)
 	d.maybeScheduleFlush()
 }
 
-// ensures that the mutable memtable has sufficient space to accommodate the insertion of "key" and "val".
-func (d *DB) prepMemtableForKV(key, val []byte) (*memtable.Memtable, error) {
+// Ensures that the mutable memtable has sufficient space to accommodate the insertion of "key" and "val".
+func (d *DB) prepMemtableForKV(key, val []byte) *memtable.Memtable {
 	m := d.memtables.mutable
 
 	if !m.HasRoomForWrite(key, val) {
-		if err := d.rotateWAL(); err != nil {
-			return nil, err
-		}
 		m = d.rotateMemtables()
 	}
-	return m, nil
+	return m
 }
 
 func (d *DB) rotateMemtables() *memtable.Memtable {
-	d.memtables.mutable = memtable.NewMemtable(memtableSizeLimit, d.wal.fm)
+	d.memtables.mutable = memtable.NewMemtable(memtableSizeLimit)
 	d.memtables.queue = append(d.memtables.queue, d.memtables.mutable)
 	return d.memtables.mutable
-}
-
-func (d *DB) rotateWAL() (err error) {
-	if err = d.wal.w.Close(); err != nil {
-		return err
-	}
-	if err = d.createNewWAL(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *DB) createNewWAL() error {
-	ds := d.dataStorage
-	fm := ds.PrepareNewWALFile()
-	logFile, err := ds.OpenFileForWriting(fm)
-	if err != nil {
-		return err
-	}
-	d.wal.w = wal.NewWriter(logFile)
-	d.wal.fm = fm
-	return nil
 }
 
 func (d *DB) maybeScheduleFlush() {
@@ -192,7 +105,7 @@ func (d *DB) flushMemtables() error {
 	d.memtables.queue = d.memtables.queue[n:]
 
 	for i := 0; i < len(flushable); i++ {
-		meta := d.dataStorage.PrepareNewSSTFile()
+		meta := d.dataStorage.PrepareNewFile()
 		f, err := d.dataStorage.OpenFileForWriting(meta)
 		if err != nil {
 			return err
@@ -207,10 +120,6 @@ func (d *DB) flushMemtables() error {
 			return err
 		}
 		d.sstables = append(d.sstables, meta)
-		err = d.dataStorage.DeleteFile(flushable[i].LogFile())
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }

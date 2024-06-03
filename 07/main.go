@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/cloudcentricdev/golang-tutorials/07/cli"
-	"github.com/cloudcentricdev/golang-tutorials/07/db"
+	"github.com/cloudcentricdev/golang-tutorials/06/cli"
+	"github.com/cloudcentricdev/golang-tutorials/06/db"
 
 	"github.com/go-faker/faker/v4"
 )
@@ -33,7 +33,7 @@ func main() {
 	if *shouldSeed {
 		seedDatabaseWithTestRecords(d)
 	}
-	
+
 	scanner := bufio.NewScanner(os.Stdin)
 	demo := cli.NewCLI(scanner, d)
 	demo.Start()

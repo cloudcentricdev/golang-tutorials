@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cloudcentricdev/golang-tutorials/07/db"
+	"github.com/cloudcentricdev/golang-tutorials/06/db"
 )
 
 type CLI struct {

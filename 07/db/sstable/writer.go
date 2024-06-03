@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/cloudcentricdev/golang-tutorials/07/db/encoder"
-	"github.com/cloudcentricdev/golang-tutorials/07/db/memtable"
+	"github.com/cloudcentricdev/golang-tutorials/06/db/encoder"
+	"github.com/cloudcentricdev/golang-tutorials/06/db/memtable"
 	"github.com/golang/snappy"
 )
 

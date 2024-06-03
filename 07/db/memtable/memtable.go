@@ -1,9 +1,8 @@
 package memtable
 
 import (
-	"github.com/cloudcentricdev/golang-tutorials/07/db/encoder"
-	"github.com/cloudcentricdev/golang-tutorials/07/db/skiplist"
-	"github.com/cloudcentricdev/golang-tutorials/07/db/storage"
+	"github.com/cloudcentricdev/golang-tutorials/06/db/encoder"
+	"github.com/cloudcentricdev/golang-tutorials/06/db/skiplist"
 )
 
 type Memtable struct {
@@ -11,15 +10,13 @@ type Memtable struct {
 	sizeUsed  int // The approximate amount of space used by the Memtable so far (in bytes).
 	sizeLimit int // The maximum allowed size of the Memtable (in bytes).
 	encoder   *encoder.Encoder
-	logMeta   *storage.FileMetadata
 }
 
-func NewMemtable(sizeLimit int, logMeta *storage.FileMetadata) *Memtable {
+func NewMemtable(sizeLimit int) *Memtable {
 	m := &Memtable{
 		sl:        skiplist.NewSkipList(),
 		sizeLimit: sizeLimit,
 		encoder:   encoder.NewEncoder(),
-		logMeta:   logMeta,
 	}
 	return m
 }
@@ -58,8 +55,4 @@ func (m *Memtable) Iterator() *skiplist.Iterator {
 
 func (m *Memtable) Size() int {
 	return m.sizeUsed
-}
-
-func (m *Memtable) LogFile() *storage.FileMetadata {
-	return m.logMeta
 }

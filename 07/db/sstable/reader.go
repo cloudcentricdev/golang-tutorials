@@ -8,7 +8,7 @@ import (
 	"io"
 	"io/fs"
 
-	"github.com/cloudcentricdev/golang-tutorials/07/db/encoder"
+	"github.com/cloudcentricdev/golang-tutorials/06/db/encoder"
 	"github.com/golang/snappy"
 )
 

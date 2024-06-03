@@ -1,4 +1,4 @@
-module github.com/cloudcentricdev/golang-tutorials/07
+module github.com/cloudcentricdev/golang-tutorials/06
 
 go 1.21.0
 
