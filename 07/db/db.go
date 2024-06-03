@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	memtableSizeLimit      = 5 * (3 << 10) // 3 KiB
-	memtableFlushThreshold = 1
+	memtableSizeLimit      = 4 << 10 // 4 KiB
+	memtableFlushThreshold = 8 << 10 // 8 KiB
 )
 
 type DB struct {
