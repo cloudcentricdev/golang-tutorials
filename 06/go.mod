@@ -8,4 +8,4 @@ require (
 	github.com/golang/snappy v0.0.4
 )
 
-require golang.org/x/text v0.3.7 // indirect
+require golang.org/x/text v0.3.8 // indirect
