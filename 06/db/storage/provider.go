@@ -80,7 +80,7 @@ func (s *Provider) nextFileNum() int {
 	return s.fileNum
 }
 
-func (s *Provider) generateFileName(fileNumber int) string {
+func (s *Provider) makeFileName(fileNumber int) string {
 	return fmt.Sprintf("%06d.sst", fileNumber)
 }
 
@@ -93,7 +93,7 @@ func (s *Provider) PrepareNewFile() *FileMetadata {
 
 func (s *Provider) OpenFileForWriting(meta *FileMetadata) (*os.File, error) {
 	const openFlags = os.O_RDWR | os.O_CREATE | os.O_EXCL
-	filename := s.generateFileName(meta.fileNum)
+	filename := s.makeFileName(meta.fileNum)
 	file, err := os.OpenFile(filepath.Join(s.dataDir, filename), openFlags, 0644)
 	if err != nil {
 		return nil, err
@@ -103,7 +103,7 @@ func (s *Provider) OpenFileForWriting(meta *FileMetadata) (*os.File, error) {
 
 func (s *Provider) OpenFileForReading(meta *FileMetadata) (*os.File, error) {
 	const openFlags = os.O_RDONLY
-	filename := s.generateFileName(meta.fileNum)
+	filename := s.makeFileName(meta.fileNum)
 	file, err := os.OpenFile(filepath.Join(s.dataDir, filename), openFlags, 0)
 	if err != nil {
 		return nil, err
