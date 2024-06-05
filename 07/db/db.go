@@ -114,18 +114,30 @@ func (d *DB) replayWAL(fm *storage.FileMetadata) error {
 	return nil
 }
 
-func (d *DB) Set(key, val []byte) {
-	_ = d.wal.w.RecordInsertion(key, val)
-	m, _ := d.prepMemtableForKV(key, val)
+func (d *DB) Set(key, val []byte) error {
+	if err := d.wal.w.RecordInsertion(key, val); err != nil {
+		return err
+	}
+	m, err := d.prepMemtableForKV(key, val)
+	if err != nil {
+		return err
+	}
 	m.Insert(key, val)
 	d.maybeScheduleFlush()
+	return nil
 }
 
-func (d *DB) Delete(key []byte) {
-	_ = d.wal.w.RecordDeletion(key)
-	m, _ := d.prepMemtableForKV(key, nil)
+func (d *DB) Delete(key []byte) error {
+	if err := d.wal.w.RecordDeletion(key); err != nil {
+		return err
+	}
+	m, err := d.prepMemtableForKV(key, nil)
+	if err != nil {
+		return err
+	}
 	m.InsertTombstone(key)
 	d.maybeScheduleFlush()
+	return nil
 }
 
 // ensures that the mutable memtable has sufficient space to accommodate the insertion of "key" and "val".

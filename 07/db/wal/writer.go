@@ -7,17 +7,17 @@ import (
 	"github.com/cloudcentricdev/golang-tutorials/07/db/encoder"
 )
 
-const blockSize = 4 << 10
-
-type syncWriteCloser interface {
-	io.WriteCloser
-	Sync() error
-}
+const blockSize = 4 << 10 // 4 KiB
 
 type block struct {
 	buf    [blockSize]byte
 	offset int
 	len    int
+}
+
+type syncWriteCloser interface {
+	io.WriteCloser
+	Sync() error
 }
 
 type Writer struct {
@@ -48,7 +48,7 @@ func (w *Writer) RecordDeletion(key []byte) error {
 func (w *Writer) record(key, val []byte) error {
 	// determine the maximum data length
 	keyLen, valLen := len(key), len(val)
-	maxLen := 2 + binary.MaxVarintLen64 + keyLen + valLen
+	maxLen := 2*binary.MaxVarintLen64 + keyLen + valLen
 	// determine where data should be positioned within the current block
 	b := w.block
 	start := b.offset
@@ -63,13 +63,13 @@ func (w *Writer) record(key, val []byte) error {
 	}
 	// append data to the current block and flush it to disk
 	buf := b.buf[start:end]
-	n := binary.PutUvarint(buf[2:], uint64(keyLen))
-	copy(buf[2+n:], key)
-	copy(buf[2+n+keyLen:], val)
+	n := binary.PutUvarint(buf[:], uint64(keyLen))
+	n += binary.PutUvarint(buf[n:], uint64(valLen))
+	copy(buf[n:], key)
+	copy(buf[n+keyLen:], val)
 	dataLen := n + keyLen + valLen
-	binary.LittleEndian.PutUint16(buf[:2], uint16(dataLen))
-	b.offset += dataLen + 2
-	if err := w.writeAndSync(buf[:dataLen+2]); err != nil {
+	b.offset += dataLen
+	if err := w.writeAndSync(buf[:dataLen]); err != nil {
 		return err
 	}
 	return nil

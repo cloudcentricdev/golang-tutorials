@@ -72,7 +72,10 @@ func (c *CLI) processSetCommand(args []string) {
 		fmt.Println("Usage: SET <key> <value>")
 		return
 	}
-	c.db.Set([]byte(args[0]), []byte(args[1]))
+	err := c.db.Set([]byte(args[0]), []byte(args[1]))
+	if err != nil {
+		fmt.Println("Failed.")
+	}
 	fmt.Println("OK.")
 }
 
@@ -81,7 +84,10 @@ func (c *CLI) processDeleteCommand(args []string) {
 		fmt.Println("Usage: DEL <key>")
 		return
 	}
-	c.db.Delete([]byte(args[0]))
+	err := c.db.Delete([]byte(args[0]))
+	if err != nil {
+		fmt.Println("Failed.")
+	}
 	fmt.Println("OK.")
 }
 

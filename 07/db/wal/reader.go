@@ -38,22 +38,23 @@ func (r *Reader) Next() (key []byte, val *encoder.EncodedValue, err error) {
 		return
 	}
 	start := b.offset
-	dataLen := int(binary.LittleEndian.Uint16(b.buf[start : start+2]))
+	keyLen, n := binary.Uvarint(b.buf[start:])
 	// check if last record reached (when last block in WAL is properly sealed)
-	if dataLen == 0 {
+	if keyLen == 0 {
 		if err = r.loadNextBlock(); err != nil {
 			return
 		}
 		start = b.offset
-		dataLen = int(binary.LittleEndian.Uint16(b.buf[start : start+2]))
+		keyLen, n = binary.Uvarint(b.buf[start:])
 	}
 	// read next record in WAL block
-	buf := b.buf[start+2 : start+2+dataLen]
-	b.offset = start + 2 + dataLen
-	keyLen, n := binary.Uvarint(buf)
+	valLen, m := binary.Uvarint(b.buf[start+n:])
+	dataLen := int(keyLen) + int(valLen) + n + m
+	buf := b.buf[start : start+dataLen]
+	b.offset += dataLen
 	key = make([]byte, keyLen)
-	copy(key, buf[n:n+int(keyLen)])
-	val = r.encoder.Parse(buf[n+int(keyLen):])
+	copy(key, buf[n+m:n+m+int(keyLen)])
+	val = r.encoder.Parse(buf[n+m+int(keyLen):])
 	return
 }
 

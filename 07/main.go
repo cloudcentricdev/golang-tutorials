@@ -33,7 +33,7 @@ func main() {
 	if *shouldSeed {
 		seedDatabaseWithTestRecords(d)
 	}
-	
+
 	scanner := bufio.NewScanner(os.Stdin)
 	demo := cli.NewCLI(scanner, d)
 	demo.Start()
@@ -61,6 +61,9 @@ func seedDatabaseWithTestRecords(d *db.DB) {
 	for i := 0; i < *seedNumRecords; i++ {
 		k := []byte(faker.Word() + faker.Word())
 		v := []byte(faker.Word() + faker.Word())
-		d.Set(k, v)
+		err := d.Set(k, v)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
