@@ -46,14 +46,14 @@ func (w *Writer) RecordDeletion(key []byte) error {
 }
 
 func (w *Writer) record(key, val []byte) error {
-	// determine the maximum data length
+	// determine the maximum length the WAL record could occupy
 	keyLen, valLen := len(key), len(val)
 	maxLen := 2*binary.MaxVarintLen64 + keyLen + valLen
-	// determine where data should be positioned within the current block
+	// determine where the WAL record should be positioned within the current block
 	b := w.block
 	start := b.offset
 	end := start + maxLen
-	// seal the block if it doesn't have enough space to accommodate the data and start writing to a new one instead
+	// seal the block if it doesn't have enough space to accommodate the WAL record and start writing to a new block instead
 	if end > blockSize {
 		if err := w.sealBlock(); err != nil {
 			return err
@@ -61,7 +61,7 @@ func (w *Writer) record(key, val []byte) error {
 		start = b.offset
 		end = start + maxLen
 	}
-	// append data to the current block and flush it to disk
+	// append WAL record to the current block and flush it to disk
 	buf := b.buf[start:end]
 	n := binary.PutUvarint(buf[:], uint64(keyLen))
 	n += binary.PutUvarint(buf[n:], uint64(valLen))
