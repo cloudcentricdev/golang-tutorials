@@ -1,13 +1,23 @@
 package wal
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 
 	"github.com/cloudcentricdev/golang-tutorials/07/db/encoder"
 )
 
-const blockSize = 4 << 10 // 4 KiB
+const blockSize = 256 // 4 KiB
+
+const headerSize = 3
+
+const (
+	chunkTypeFull   = 1
+	chunkTypeFirst  = 2
+	chunkTypeMiddle = 3
+	chunkTypeLast   = 4
+)
 
 type block struct {
 	buf    [blockSize]byte
@@ -24,6 +34,7 @@ type Writer struct {
 	block   *block
 	file    syncWriteCloser
 	encoder *encoder.Encoder
+	buf     *bytes.Buffer
 }
 
 func NewWriter(logFile syncWriteCloser) *Writer {
@@ -31,6 +42,7 @@ func NewWriter(logFile syncWriteCloser) *Writer {
 		block:   &block{},
 		file:    logFile,
 		encoder: encoder.NewEncoder(),
+		buf:     &bytes.Buffer{},
 	}
 	return w
 }
@@ -49,30 +61,61 @@ func (w *Writer) record(key, val []byte) error {
 	// determine the maximum length the WAL record could occupy
 	keyLen, valLen := len(key), len(val)
 	maxLen := 2*binary.MaxVarintLen64 + keyLen + valLen
-	// determine where the WAL record should be positioned within the current block
-	b := w.block
-	start := b.offset
-	end := start + maxLen
-	// seal the block if it doesn't have enough space to accommodate the WAL record and start writing to a new block instead
-	if end > blockSize {
-		if err := w.sealBlock(); err != nil {
+	scratch := w.scratchBuf(maxLen)
+	n := binary.PutUvarint(scratch[:], uint64(keyLen))
+	n += binary.PutUvarint(scratch[n:], uint64(valLen))
+	copy(scratch[n:], key)
+	copy(scratch[n+keyLen:], val)
+	dataLen := n + keyLen + valLen
+	scratch = scratch[:dataLen]
+
+	for chunk := 0; len(scratch) > 0; chunk++ {
+		// determine where the WAL record should be positioned within the current block
+		b := w.block
+		start := b.offset
+		end := start + headerSize
+		// seal the block if it doesn't have enough space to accommodate a WAL record chunk
+		if end >= blockSize {
+			if err := w.sealBlock(); err != nil {
+				return err
+			}
+			start = b.offset
+		}
+		// append WAL record chunk to the current block and flush it to disk
+		buf := b.buf[start:]
+		dataLen = copy(buf[headerSize:], scratch)
+		binary.LittleEndian.PutUint16(buf, uint16(dataLen))
+		scratch = scratch[dataLen:]
+		b.offset += dataLen + headerSize
+
+		if b.offset < blockSize {
+			if chunk == 0 {
+				buf[2] = chunkTypeFull
+			} else {
+				buf[2] = chunkTypeLast
+			}
+		} else {
+			if chunk == 0 {
+				buf[2] = chunkTypeFirst
+			} else {
+				buf[2] = chunkTypeMiddle
+			}
+		}
+
+		if err := w.writeAndSync(buf[:dataLen+headerSize]); err != nil {
 			return err
 		}
-		start = b.offset
-		end = start + maxLen
-	}
-	// append WAL record to the current block and flush it to disk
-	buf := b.buf[start:end]
-	n := binary.PutUvarint(buf[:], uint64(keyLen))
-	n += binary.PutUvarint(buf[n:], uint64(valLen))
-	copy(buf[n:], key)
-	copy(buf[n+keyLen:], val)
-	dataLen := n + keyLen + valLen
-	b.offset += dataLen
-	if err := w.writeAndSync(buf[:dataLen]); err != nil {
-		return err
 	}
 	return nil
+}
+
+func (w *Writer) scratchBuf(needed int) []byte {
+	available := w.buf.Available()
+	if needed > available {
+		w.buf.Grow(needed)
+	}
+	buf := w.buf.AvailableBuffer()
+	return buf[:needed]
 }
 
 func (w *Writer) Close() (err error) {
