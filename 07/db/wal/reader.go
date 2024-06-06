@@ -1,6 +1,7 @@
 package wal
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -13,6 +14,7 @@ type Reader struct {
 	blockNum int
 	block    *block
 	encoder  *encoder.Encoder
+	buf      *bytes.Buffer
 }
 
 func NewReader(logFile io.ReadCloser) *Reader {
@@ -21,6 +23,7 @@ func NewReader(logFile io.ReadCloser) *Reader {
 		blockNum: -1,
 		block:    &block{},
 		encoder:  encoder.NewEncoder(),
+		buf:      &bytes.Buffer{},
 	}
 }
 
@@ -37,24 +40,34 @@ func (r *Reader) Next() (key []byte, val *encoder.EncodedValue, err error) {
 		err = io.EOF
 		return
 	}
-	start := b.offset
-	keyLen, n := binary.Uvarint(b.buf[start:])
-	// check if last record reached (when last block in WAL is properly sealed)
-	if keyLen == 0 {
+	if b.len-b.offset <= headerSize {
 		if err = r.loadNextBlock(); err != nil {
 			return
 		}
-		start = b.offset
-		keyLen, n = binary.Uvarint(b.buf[start:])
 	}
-	// read next record in WAL block
-	valLen, m := binary.Uvarint(b.buf[start+n:])
-	dataLen := int(keyLen) + int(valLen) + n + m
-	buf := b.buf[start : start+dataLen]
-	b.offset += dataLen
+	r.buf.Reset()
+
+	for {
+		start := b.offset
+		dataLen := int(binary.LittleEndian.Uint16(b.buf[start : start+2]))
+		chunkType := b.buf[start+2]
+		r.buf.Write(b.buf[start+headerSize : start+headerSize+dataLen])
+		b.offset += headerSize + dataLen
+
+		if chunkType == chunkTypeFull || chunkType == chunkTypeLast {
+			break
+		}
+		if err = r.loadNextBlock(); err != nil {
+			return
+		}
+
+	}
+	scratch := r.buf.Bytes()
+	keyLen, n := binary.Uvarint(scratch[:])
+	_, m := binary.Uvarint(scratch[n:])
 	key = make([]byte, keyLen)
-	copy(key, buf[n+m:n+m+int(keyLen)])
-	val = r.encoder.Parse(buf[n+m+int(keyLen):])
+	copy(key, scratch[n+m:n+m+int(keyLen)])
+	val = r.encoder.Parse(scratch[n+m+int(keyLen):])
 	return
 }
 
