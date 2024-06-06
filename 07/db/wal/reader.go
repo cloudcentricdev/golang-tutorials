@@ -40,6 +40,7 @@ func (r *Reader) Next() (key []byte, val *encoder.EncodedValue, err error) {
 		err = io.EOF
 		return
 	}
+	// check if last record reached (when last block in WAL is properly sealed)
 	if b.len-b.offset <= headerSize {
 		if err = r.loadNextBlock(); err != nil {
 			return

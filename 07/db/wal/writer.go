@@ -72,17 +72,15 @@ func (w *Writer) record(key, val []byte) error {
 	for chunk := 0; len(scratch) > 0; chunk++ {
 		// determine where the WAL record should be positioned within the current block
 		b := w.block
-		start := b.offset
-		end := start + headerSize
+		end := b.offset + headerSize
 		// seal the block if it doesn't have enough space to accommodate a WAL record chunk
 		if end >= blockSize {
 			if err := w.sealBlock(); err != nil {
 				return err
 			}
-			start = b.offset
 		}
 		// append WAL record chunk to the current block and flush it to disk
-		buf := b.buf[start:]
+		buf := b.buf[b.offset:]
 		dataLen = copy(buf[headerSize:], scratch)
 		binary.LittleEndian.PutUint16(buf, uint16(dataLen))
 		scratch = scratch[dataLen:]
