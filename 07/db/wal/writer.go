@@ -8,7 +8,7 @@ import (
 	"github.com/cloudcentricdev/golang-tutorials/07/db/encoder"
 )
 
-const blockSize = 256 // 4 KiB
+const blockSize = 4 << 10 // 4 KiB
 
 const headerSize = 3
 
