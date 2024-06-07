@@ -128,7 +128,7 @@ func (w *Writer) Close() (err error) {
 	return nil
 }
 
-// sealBlock applies zero padding to the current block and calls writeAndSync to persists it to stable storage
+// sealBlock applies zero padding to the current block and calls writeAndSync to persist it to stable storage
 func (w *Writer) sealBlock() error {
 	b := w.block
 	clear(b.buf[b.offset:])
