@@ -58,34 +58,41 @@ func (w *Writer) RecordDeletion(key []byte) error {
 }
 
 func (w *Writer) record(key, val []byte) error {
-	// determine the maximum length the WAL record could occupy
+	// determine the maximum possible payload length
 	keyLen, valLen := len(key), len(val)
 	maxLen := 2*binary.MaxVarintLen64 + keyLen + valLen
+	// initialize a scratch buffer capable of fitting the entire payload
 	scratch := w.scratchBuf(maxLen)
+	// place the entire payload into the scratch buffer
 	n := binary.PutUvarint(scratch[:], uint64(keyLen))
 	n += binary.PutUvarint(scratch[n:], uint64(valLen))
 	copy(scratch[n:], key)
 	copy(scratch[n+keyLen:], val)
+	// calculate the actual scratch buffer length being used
 	dataLen := n + keyLen + valLen
+	// discard the unused portion
 	scratch = scratch[:dataLen]
 
+	// start splitting the payload into chunks
 	for chunk := 0; len(scratch) > 0; chunk++ {
-		// determine where the WAL record should be positioned within the current block
+		// reference the current data block
 		b := w.block
-		end := b.offset + headerSize
-		// seal the block if it doesn't have enough space to accommodate a WAL record chunk
-		if end >= blockSize {
+		// seal the block if it doesn't have enough room to accommodate this chunk
+		if b.offset+headerSize >= blockSize {
 			if err := w.sealBlock(); err != nil {
 				return err
 			}
 		}
-		// append WAL record chunk to the current block and flush it to disk
+		// fill the data block with as much of the available payload as possible
 		buf := b.buf[b.offset:]
 		dataLen = copy(buf[headerSize:], scratch)
+		// write the payload length to the chunk header
 		binary.LittleEndian.PutUint16(buf, uint16(dataLen))
+		// advance the scratch buffer and data block offsets
 		scratch = scratch[dataLen:]
 		b.offset += dataLen + headerSize
 
+		// determine the chunk type and write it to the chunk header
 		if b.offset < blockSize {
 			if chunk == 0 {
 				buf[2] = chunkTypeFull
@@ -100,6 +107,7 @@ func (w *Writer) record(key, val []byte) error {
 			}
 		}
 
+		// flush updated data block portion to disk
 		if err := w.writeAndSync(buf[:dataLen+headerSize]); err != nil {
 			return err
 		}

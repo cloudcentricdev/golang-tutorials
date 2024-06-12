@@ -29,7 +29,7 @@ func NewReader(logFile io.ReadCloser) *Reader {
 
 func (r *Reader) Next() (key []byte, val *encoder.EncodedValue, err error) {
 	b := r.block
-	// load first WAL block into memory
+	// load the very first WAL block into memory if necessary
 	if r.blockNum == -1 {
 		if err = r.loadNextBlock(); err != nil {
 			return
@@ -40,30 +40,36 @@ func (r *Reader) Next() (key []byte, val *encoder.EncodedValue, err error) {
 		err = io.EOF
 		return
 	}
-	// check if last record reached (when last block in WAL is properly sealed)
+	// check if last record in block reached (when last block in WAL is properly sealed)
 	if b.len-b.offset <= headerSize {
 		if err = r.loadNextBlock(); err != nil {
 			return
 		}
 	}
+	// start with a clean scratch buffer
 	r.buf.Reset()
-
+	// recover all chunks to form the full payload
 	for {
 		start := b.offset
+		// extract data from chunk header (payload length and chunk type)
 		dataLen := int(binary.LittleEndian.Uint16(b.buf[start : start+2]))
 		chunkType := b.buf[start+2]
+		// copy recovered payload to scratch buffer
 		r.buf.Write(b.buf[start+headerSize : start+headerSize+dataLen])
+		// advance the data block offset
 		b.offset += headerSize + dataLen
-
+		// check if there are no chunks left to process for this record
 		if chunkType == chunkTypeFull || chunkType == chunkTypeLast {
 			break
 		}
+		// load next block to retrieve the subsequent chunk
 		if err = r.loadNextBlock(); err != nil {
 			return
 		}
-
 	}
+	// retrieve scratch buffer contents (i.e., the payload)
 	scratch := r.buf.Bytes()
+	// parse the WAL record
 	keyLen, n := binary.Uvarint(scratch[:])
 	_, m := binary.Uvarint(scratch[n:])
 	key = make([]byte, keyLen)
