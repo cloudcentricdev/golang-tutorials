@@ -71,6 +71,9 @@ func (s *Provider) ListFiles() ([]*FileMetadata, error) {
 			fileNum:  fileNumber,
 			fileType: fileType,
 		})
+		if fileNumber >= s.fileNum {
+			s.fileNum = fileNumber
+		}
 	}
 	return meta, nil
 }
