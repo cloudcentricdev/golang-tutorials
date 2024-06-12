@@ -13,6 +13,7 @@ Below is a list mapping each subfolder to its respective article on the website:
 * [04:](https://github.com/cloudcentricdev/golang-tutorials/tree/main/04) [Implementing a B-Tree in Go](https://www.cloudcentric.dev/implementing-a-b-tree-in-go/)
 * [05:](https://github.com/cloudcentricdev/golang-tutorials/tree/main/05) [Exploring Memtables](https://www.cloudcentric.dev/exploring-memtables/)
 * [06:](https://github.com/cloudcentricdev/golang-tutorials/tree/main/06) [Exploring SSTables](https://www.cloudcentric.dev/exploring-sstables/)
+* [07:](https://github.com/cloudcentricdev/golang-tutorials/tree/main/07) [Building a Write-ahead Log in Go](https://www.cloudcentric.dev/building-a-write-ahead-log-in-go/)
 
 The link format is:
 
