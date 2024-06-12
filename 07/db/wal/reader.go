@@ -29,7 +29,7 @@ func NewReader(logFile io.ReadCloser) *Reader {
 
 func (r *Reader) Next() (key []byte, val *encoder.EncodedValue, err error) {
 	b := r.block
-	// load the very first WAL block into memory if necessary
+	// load the very first WAL block into memory
 	if r.blockNum == -1 {
 		if err = r.loadNextBlock(); err != nil {
 			return

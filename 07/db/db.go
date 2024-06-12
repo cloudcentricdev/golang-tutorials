@@ -79,14 +79,19 @@ func (d *DB) replayWALs() error {
 }
 
 func (d *DB) replayWAL(fm *storage.FileMetadata) error {
+	// open WAL file for reading
 	f, err := d.dataStorage.OpenFileForReading(fm)
 	if err != nil {
 		return err
 	}
+	// create a new reader for iterating the WAL file
 	r := wal.NewReader(f)
+	// prepare a new memtable to apply records to
 	d.wal.fm = fm
 	m := d.rotateMemtables()
+	// start processing records
 	for {
+		// fetch next record from WAL file
 		key, val, err := r.Next()
 		if err != nil {
 			if err == io.EOF {
@@ -94,20 +99,24 @@ func (d *DB) replayWAL(fm *storage.FileMetadata) error {
 			}
 			return err
 		}
+		// rotate memtable if it's full
 		if !m.HasRoomForWrite(key, val.Value()) {
 			d.rotateMemtables()
 		}
+		// apply WAL record to memtable
 		if val.IsTombstone() {
 			m.InsertTombstone(key)
 		} else {
 			m.Insert(key, val.Value())
 		}
 	}
+	// flush all memtables to disk
 	d.rotateMemtables()
 	if err = d.flushMemtables(); err != nil {
 		return err
 	}
 	d.memtables.queue, d.memtables.mutable = nil, nil
+	// close WAL file
 	if err = f.Close(); err != nil {
 		return err
 	}
@@ -140,7 +149,7 @@ func (d *DB) Delete(key []byte) error {
 	return nil
 }
 
-// ensures that the mutable memtable has sufficient space to accommodate the insertion of "key" and "val".
+// prepMemtableForKV ensures that the mutable memtable has sufficient space to accommodate the insertion of "key" and "val".
 func (d *DB) prepMemtableForKV(key, val []byte) (*memtable.Memtable, error) {
 	m := d.memtables.mutable
 
